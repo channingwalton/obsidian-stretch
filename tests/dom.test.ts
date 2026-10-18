@@ -1,0 +1,198 @@
+import { describe, expect, it } from 'vitest'
+import { JSDOM } from 'jsdom'
+import { lists, mount, readList, type OpenState } from '../src/dom'
+import type { Open } from '../src/stretch'
+
+/** Obsidian's reading-view markup for a nested list, as it renders it. */
+const LIST = `
+<ul class="has-list-bullet">
+<li data-line="0"><span class="list-bullet"></span><span class="list-collapse-indicator collapse-indicator collapse-icon"><svg></svg></span>The <a class="internal-link" href="Plugin">plugin</a> is <strong>cheap</strong>.
+<ul class="has-list-bullet">
+<li data-line="1"><span class="list-bullet"></span>It makes no <a class="internal-link" href="Model">model</a> calls.</li>
+<li data-line="2"><span class="list-bullet"></span><span class="list-collapse-indicator"></span>Its token cost is small.
+<ul><li data-line="3"><span class="list-bullet"></span>The guide is 340 words.</li></ul>
+</li>
+</ul>
+</li>
+<li data-line="4"><span class="list-bullet"></span>Nobody has shipped one.</li>
+</ul>`
+
+const obsidianList = (doc: Document = document) => {
+  const root = doc.createElement('div')
+  root.innerHTML = LIST
+  return root.querySelector('ul') as HTMLElement
+}
+
+const memory = (): OpenState & { value: Open } => {
+  const state = {
+    value: new Set<string>() as Open,
+    get: () => state.value,
+    set: (open: Open) => {
+      state.value = open
+    },
+  }
+  return state
+}
+
+const text = (el: Element) => el.textContent?.replace(/\s+/g, ' ').trim()
+
+describe('readList', () => {
+  it('turns the list into a tree, keeping inline markup and dropping bullets, indicators and sublists', () => {
+    const tree = readList(obsidianList())
+    expect(tree).toHaveLength(2)
+    const html = (nodes: globalThis.Node[]) =>
+      nodes
+        .map(n => (n instanceof Element ? n.outerHTML : n.textContent))
+        .join('')
+        .trim()
+    expect(html(tree[0]!.content)).toBe('The <a class="internal-link" href="Plugin">plugin</a> is <strong>cheap</strong>.')
+    expect(tree[0]!.children).toHaveLength(2)
+    expect(html(tree[0]!.children[0]!.content)).toBe('It makes no <a class="internal-link" href="Model">model</a> calls.')
+    expect(tree[0]!.children[1]!.children).toHaveLength(1)
+    expect(tree[1]!.children).toHaveLength(0)
+  })
+})
+
+describe('readList', () => {
+  it('unwraps the paragraphs of a loose list so the items stay inline', () => {
+    const root = document.createElement('div')
+    root.innerHTML = `<ul>
+<li><span class="list-bullet"></span>
+<p>A loose <em>item</em>.</p>
+<ul><li><span class="list-bullet"></span><p>Its child.</p></li></ul>
+</li>
+</ul>`
+    const tree = readList(root.querySelector('ul') as HTMLElement)
+    const tags = (nodes: globalThis.Node[]) => nodes.filter((n): n is Element => n instanceof Element).map(n => n.tagName)
+    expect(tags(tree[0]!.content)).toEqual(['EM'])
+    expect(tags(tree[0]!.children[0]!.content)).toEqual([])
+    expect(tree[0]!.content.map(n => n.textContent).join('').trim()).toBe('A loose item.')
+  })
+})
+
+describe('readList', () => {
+  it('keeps a numbered sublist as part of its sentence rather than flattening it', () => {
+    const root = document.createElement('div')
+    root.innerHTML = '<ul><li>Steps:<ol><li>Unplug.</li><li>Wait.</li></ol></li></ul>'
+    const tree = readList(root.querySelector('ul') as HTMLElement)
+    expect(tree[0]!.children).toHaveLength(0)
+    expect(tree[0]!.content.some(n => (n as Element).tagName === 'OL')).toBe(true)
+  })
+})
+
+describe('mount', () => {
+  it('replaces the list with a paragraph showing only the top level', () => {
+    const list = obsidianList()
+    const holder = document.createElement('div')
+    holder.append(list)
+    const p = mount(list, memory())
+    expect(holder.querySelector('ul')).toBeNull()
+    expect(holder.firstElementChild).toBe(p)
+    expect(p.classList.contains('stretch')).toBe(true)
+    expect(text(p)).toBe('The plugin is cheap. Nobody has shipped one.')
+  })
+
+  it('marks the sentences that can open', () => {
+    const p = mount(obsidianList(), memory())
+    const nodes = [...p.querySelectorAll('.stretch-node')]
+    expect(nodes.map(n => n.classList.contains('has-children'))).toEqual([true, false])
+  })
+
+  it('opens one level in place when its sentence is clicked, and closes it from the « mark', () => {
+    const p = mount(obsidianList(), memory())
+    const first = p.querySelector<HTMLElement>('.stretch-node')!
+    first.click()
+    expect(text(p)).toBe('The plugin is cheap. « It makes no model calls. Its token cost is small. Nobody has shipped one.')
+    expect(p.querySelector('.stretch-node')!.classList.contains('is-open')).toBe(true)
+
+    p.querySelector<HTMLElement>('.stretch-close')!.click()
+    expect(text(p)).toBe('The plugin is cheap. Nobody has shipped one.')
+  })
+
+  it('opens a nested level beneath an open one', () => {
+    const p = mount(obsidianList(), memory())
+    p.querySelector<HTMLElement>('.stretch-node')!.click()
+    p.querySelector<HTMLElement>('.stretch-node[data-key="0.1"]')!.click()
+    expect(text(p)).toContain('Its token cost is small. « The guide is 340 words.')
+  })
+
+  it('leaves a click on a link to the link, even inside a sentence that could open', () => {
+    const p = mount(obsidianList(), memory())
+    const skim = text(p)
+    p.querySelector<HTMLElement>('.stretch-node.has-children a')!.click()
+    expect(text(p)).toBe(skim)
+    expect(p.querySelector('.stretch-node')!.classList.contains('is-open')).toBe(false)
+  })
+
+  it('ignores a click that bubbles up from a stretch paragraph nested inside one of its sentences', () => {
+    const outer = mount(obsidianList(), memory())
+    outer.querySelector<HTMLElement>('.stretch-node')!.click()
+    // An embedded stretch note, filled in by another post-processor, lands inside sentence "0".
+    const inner = mount(obsidianList(), memory())
+    outer.querySelector<HTMLElement>('.stretch-node[data-key="0"]')!.append(inner)
+    inner.querySelector<HTMLElement>('.stretch-node[data-key="0"]')!.click()
+    inner.querySelector<HTMLElement>('.stretch-close[data-key="0"]')!.click()
+    expect(inner.querySelector('.stretch-node[data-key="0"]')!.classList.contains('is-open')).toBe(false)
+    expect(outer.querySelector('.stretch-node[data-key="0"]')!.classList.contains('is-open')).toBe(true)
+  })
+
+  it('shows a task checkbox read-only, and a click reaching the handler through it does not open the sentence', () => {
+    const root = document.createElement('div')
+    root.innerHTML = '<ul><li><input type="checkbox" class="task-list-item-checkbox" checked>Call the bank<ul><li>Ask about the fee.</li></ul></li></ul>'
+    const p = mount(root.querySelector('ul') as HTMLElement, memory())
+    const box = p.querySelector<HTMLInputElement>('input')!
+    expect(box.checked).toBe(true)
+    expect(box.disabled).toBe(true)
+    box.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(p.querySelector('.stretch-node')!.classList.contains('is-open')).toBe(false)
+  })
+
+  it('moves the rendered content into the paragraph rather than copying it, so later changes to it survive a redraw', () => {
+    const list = obsidianList()
+    const strong = list.querySelector('strong')!
+    const p = mount(list, memory())
+    expect(p.querySelector('strong')).toBe(strong)
+    // Another post-processor fills an embed in asynchronously, after we mounted.
+    strong.append(' indeed')
+    p.querySelector<HTMLElement>('.stretch-node')!.click()
+    p.querySelector<HTMLElement>('.stretch-close')!.click()
+    expect(text(p)).toBe('The plugin is cheap indeed. Nobody has shipped one.')
+  })
+
+  it('keeps what the reader opened in the given state, so a remount restores it', () => {
+    const state = memory()
+    mount(obsidianList(), state).querySelector<HTMLElement>('.stretch-node')!.click()
+    expect([...state.value]).toEqual(['0'])
+    const again = mount(obsidianList(), state)
+    expect(again.querySelector('.stretch-node')!.classList.contains('is-open')).toBe(true)
+  })
+})
+
+describe('lists', () => {
+  it('finds every top-level bullet list, not nested ones and not numbered ones, whose order would be lost', () => {
+    const el = document.createElement('div')
+    el.innerHTML = '<ul><li>a<ul><li>b</li></ul></li></ul><p>x</p><ol><li>c</li></ol><blockquote><ul><li>d</li></ul></blockquote>'
+    expect(lists(el).map(l => l.tagName)).toEqual(['UL'])
+  })
+})
+
+describe('in another window', () => {
+  // Obsidian pop-out windows have their own HTMLElement class, so `instanceof` from this realm fails.
+  const other = new JSDOM('<!doctype html><body></body>').window.document
+
+  it('reads the list the same way', () => {
+    const tree = readList(obsidianList(other))
+    expect(tree).toHaveLength(2)
+    expect(tree[0]!.children).toHaveLength(2)
+    expect(tree[0]!.content.some(n => (n as Element).classList?.contains('list-bullet'))).toBe(false)
+  })
+
+  it('mounts in that window and responds to clicks there', () => {
+    const list = obsidianList(other)
+    other.body.append(list)
+    const p = mount(list, memory())
+    expect(p.ownerDocument).toBe(other)
+    p.querySelector<HTMLElement>('.stretch-node')!.click()
+    expect(text(p)).toContain('« It makes no model calls.')
+  })
+})

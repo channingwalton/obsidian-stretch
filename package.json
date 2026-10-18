@@ -1,0 +1,25 @@
+{
+  "name": "obsidian-stretch",
+  "version": "0.1.0",
+  "description": "Stretchtext for Obsidian: a nested bullet list reads as a paragraph, each sentence opening one level in place",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.config.mjs production",
+    "dev": "node esbuild.config.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "install:vault": "node install.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^26.6.5",
+    "esbuild": "^0.28.2",
+    "jsdom": "^30.1.3",
+    "obsidian": "^1.14.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

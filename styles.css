@@ -1,0 +1,19 @@
+/* Stretch: a sentence that can open is underlined in the accent colour; « closes it. */
+.stretch .stretch-node.has-children:not(.is-open) {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--text-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+.stretch .stretch-node.has-children:not(.is-open):hover {
+  color: var(--text-accent);
+}
+.stretch .stretch-close {
+  cursor: pointer;
+  color: var(--text-accent);
+  user-select: none;
+}
+.stretch .stretch-close:hover {
+  color: var(--text-accent-hover);
+}
