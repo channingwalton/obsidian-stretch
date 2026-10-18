@@ -4,6 +4,8 @@ Stretchtext for Obsidian. A nested bullet list reads as a paragraph in reading v
 bullets are what you see first. Click a sentence that can open and its children appear after it,
 in place; click `«` to close them again. Each click opens one level.
 
+![A note in reading view: clicking an underlined sentence opens its children after it, in place](docs/stretch.gif)
+
 The idea is Ted Nelson's (1967). The markup is just an outline, so a note stays an ordinary nested
 list everywhere else, including Live Preview.
 
