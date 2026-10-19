@@ -17,6 +17,23 @@ run = [
     "npm run build",
 ]
 
+[tasks.bump]
+description = "Bump the version in package.json and manifest.json"
+usage = '''
+arg "<level>" help="Which part of the version to bump" {
+  choices "major" "minor" "patch"
+}
+'''
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+# npm also keeps package-lock.json's copy of the version in step.
+version=$(npm version "$usage_level" --no-git-tag-version | tr -d v)
+manifest=$(jq --arg v "$version" '.version = $v' manifest.json)
+printf '%s\n' "$manifest" > manifest.json
+echo "==> bumped to $version; commit it, then mise run release"
+'''
+
 [tasks.release]
 description = "Check, tag the manifest version and publish it as a GitHub release"
 usage = 'flag "--notes <file>" help="Release notes file; GitHub generates them when omitted"'
