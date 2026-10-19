@@ -1,0 +1,55 @@
+name: Release
+
+# mise run release pushes the version tag; this builds the plugin from it, attests the files
+# and publishes the GitHub release. Obsidian tags have no v prefix.
+on:
+  push:
+    tags: ["[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      # Creates the release.
+      contents: write
+      # Sign and store the attestations.
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v5
+      # Obsidian finds the release by the manifest version, so a tag pushed by hand must match it.
+      - run: |
+          version=$(jq -r .version manifest.json)
+          if [ "$version" != "$TAG" ]; then
+            echo "::error::tag $TAG does not match version $version in manifest.json"
+            exit 1
+          fi
+      - run: mise run commit-check
+      - uses: actions/attest@v4
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # checkout makes the tag lightweight, so fetch it again to read any notes it carries.
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          if [ "$(git cat-file -t "refs/tags/$TAG")" = tag ]; then
+            git tag --list "$TAG" --format='%(contents)' > "$RUNNER_TEMP/notes.md"
+            notes=(--notes-file "$RUNNER_TEMP/notes.md")
+          else
+            notes=(--generate-notes)
+          fi
+          gh release create "$TAG" main.js manifest.json styles.css \
+            --verify-tag \
+            --title "Stretch $TAG" \
+            "${notes[@]}"

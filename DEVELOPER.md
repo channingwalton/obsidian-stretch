@@ -8,7 +8,8 @@ see the [README](README.md).
 - Node and npm. `mise install` installs the Node version pinned in `mise.toml`, and dependencies
   are pinned in `package-lock.json`.
 - [mise](https://mise.jdx.dev) for the tasks below. Run `mise trust` once after cloning.
-- [gh](https://cli.github.com), logged in, and `jq`, both used by the release tasks.
+- `jq`, used by the release tasks, and [gh](https://cli.github.com), logged in, to follow and
+  repair releases.
 - Obsidian 1.14.4 or later on desktop, the `minAppVersion` in `manifest.json`.
 
 ## Layout
@@ -40,7 +41,7 @@ mise run              # list the tasks
 mise run cc           # commit check: clean, npm ci, typecheck, test, build
 mise run clean        # remove the built main.js
 mise run bump patch   # bump the version: major, minor or patch
-mise run release      # tag the version and publish a GitHub release
+mise run release      # tag and push the version; GitHub Actions publishes the release
 ```
 
 Run `mise run cc` before committing. The npm scripts underneath also work on their own:
@@ -53,8 +54,8 @@ npm run dev             # rebuild main.js on change, with an inline source map
 npm run install:vault   # copy the plugin into a vault
 ```
 
-`npm run dev` writes a development `main.js` with a source map. The release task rebuilds a
-production one first, so a development build is never released.
+`npm run dev` writes a development `main.js` with a source map. Releases are built by GitHub
+Actions from the tagged commit, so a local build is never released.
 
 ## Continuous integration
 
@@ -119,11 +120,17 @@ exactly, with no `v` prefix, and the release carries `main.js`, `manifest.json` 
 
 ```mermaid
 flowchart LR
-  bump["mise run bump patch"] --> commit["commit the bump"]
-  commit --> release["mise run release"]
-  release --> checks["checks, then commit check"]
-  checks --> tag["tag and push main"]
-  tag --> gh["GitHub release with the three files"]
+  subgraph local["your machine"]
+    bump["mise run bump patch"] --> commit["commit the bump"]
+    commit --> release["mise run release"]
+    release --> checks["checks, then commit check"]
+    checks --> tag["tag and push main"]
+  end
+  subgraph actions["GitHub Actions: Release workflow"]
+    build["commit check on the tag"] --> attest["attest the three files"]
+    attest --> gh["GitHub release with the three files"]
+  end
+  tag --> build
 ```
 
 1. Bump the version. This updates `package.json`, `package-lock.json` and `manifest.json`
@@ -149,17 +156,32 @@ The release task stops before tagging if:
 - the current branch is not `main`;
 - the working tree has uncommitted changes.
 
-It then runs the commit check, tags the commit, pushes `main` and the tag, and creates the
-release from that tag.
+It then runs the commit check, tags the commit, and pushes `main` and the tag. A notes file
+goes into the tag's message, which makes it an annotated tag.
+
+Pushing the tag starts the Release workflow, `.github/workflows/release.yml`. It checks that the
+tag matches the version in `manifest.json` and runs the commit check on the tagged commit. Then
+it attests `main.js`, `manifest.json` and `styles.css` and creates the release with them. The
+notes come from the tag's message, or GitHub writes them when the tag has none. Follow it with:
+
+```
+gh run list --workflow release.yml
+gh run watch
+```
+
+The attestations let anyone check that a release file was built from this repository by its
+workflow:
+
+```
+gh release download 0.1.2 --pattern main.js
+gh attestation verify main.js --repo channingwalton/obsidian-stretch
+```
 
 ### If a release goes wrong
 
-A failure before the tag is made leaves nothing to undo. If the tag was pushed but the release
-was not created, create it from the existing tag:
-
-```
-gh release create 0.1.2 main.js manifest.json styles.css --verify-tag --title "Stretch 0.1.2" --generate-notes
-```
+A failure before the tag is made leaves nothing to undo. If the tag was pushed but the workflow
+failed, fix the cause and run it again from the Actions tab, or with `gh run rerun`. A rerun
+builds the same tagged commit, so a fix that needs a code change needs a new version instead.
 
 To withdraw a release entirely, delete it and its tag on GitHub, then delete the local tag:
 

@@ -39,7 +39,7 @@ echo "==> bumped to $version; commit it, then mise run release"
 '''
 
 [tasks.release]
-description = "Check, tag the manifest version and publish it as a GitHub release"
+description = "Check, then tag and push the manifest version for the Release workflow to publish"
 usage = 'flag "--notes <file>" help="Release notes file; GitHub generates them when omitted"'
 run = '''
 #!/usr/bin/env bash
@@ -65,17 +65,14 @@ if [ -n "$(git status --porcelain)" ]; then
     exit 1
 fi
 mise run commit-check
-git tag "$version"
-git push origin main "$version"
 if [ -n "${usage_notes:-}" ]; then
-    notes=(--notes-file "$usage_notes")
+    # The Release workflow reads the notes from the tag. whitespace keeps lines starting
+    # with #, which git strips by default, so Markdown headings survive.
+    git tag --annotate --cleanup=whitespace --file "$usage_notes" "$version"
 else
-    notes=(--generate-notes)
+    git tag "$version"
 fi
-# --verify-tag: without it gh would make a missing tag from the remote default branch.
-gh release create "$version" main.js manifest.json styles.css \
-    --verify-tag \
-    --title "Stretch $version" \
-    "${notes[@]}"
-echo "==> $version released"
+# --atomic: the tag starts the release, so it must not land if main is rejected.
+git push --atomic origin main "$version"
+echo "==> pushed $version; GitHub Actions now builds and publishes it: gh run list --workflow release.yml"
 '''
