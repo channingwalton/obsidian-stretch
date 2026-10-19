@@ -23,6 +23,9 @@ cssclasses:
 ---
 ```
 
+Or right-click the note's tab, or the note in the file explorer, and choose **Make stretchable**.
+It adds the class and keeps any the note already has.
+
 Then write nested bullets where every bullet is a sentence that stands on its own:
 
 ```markdown

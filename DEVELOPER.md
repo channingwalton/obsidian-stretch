@@ -27,10 +27,12 @@ flowchart LR
 
 - `src/stretch.ts` decides which nodes show, in what order, given what the reader has opened.
 - `src/state.ts` keeps what is open for one list, shared by every view of it.
-- `src/note.ts` decides whether a note opts in through its `cssclasses`, and tells lists apart.
+- `src/note.ts` decides whether a note opts in through its `cssclasses`, opts one in, and tells
+  lists apart.
 - `src/dom.ts` reads Obsidian's rendered list into a tree and draws it as a paragraph. It uses
   Obsidian's DOM helpers, `createEl` and `createSpan`, which the tests install in jsdom.
-- `src/main.ts` registers the Markdown post-processor and wires the rest together.
+- `src/main.ts` registers the Markdown post-processor and the file menu's **Make stretchable**,
+  and wires the rest together.
 
 Each module has a test file of the same name under `tests/`.
 
