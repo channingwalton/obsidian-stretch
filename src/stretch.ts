@@ -13,6 +13,10 @@ export type Key = string
 
 export type Open = ReadonlySet<Key>
 
+/** The key of the node a key is beneath: "0.2" for "0.2.1". A top-level key has none. */
+export const parentKey = (key: Key): Key | undefined =>
+  key.includes('.') ? key.slice(0, key.lastIndexOf('.')) : undefined
+
 export interface Segment<T> {
   key: Key
   content: T

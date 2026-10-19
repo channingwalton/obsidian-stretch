@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { layout, toggle, type Node } from '../src/stretch'
+import { layout, parentKey, toggle, type Node } from '../src/stretch'
 
 const n = (content: string, children: Node<string>[] = []): Node<string> => ({ content, children })
 
@@ -57,5 +57,13 @@ describe('toggle', () => {
     const open = new Set(['0'])
     toggle(open, '0')
     expect([...open]).toEqual(['0'])
+  })
+})
+
+describe('parentKey', () => {
+  it('is the key one level up, and nothing for a top-level key', () => {
+    expect(parentKey('0.2.1')).toBe('0.2')
+    expect(parentKey('0.2')).toBe('0')
+    expect(parentKey('3')).toBeUndefined()
   })
 })

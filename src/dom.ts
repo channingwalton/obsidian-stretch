@@ -2,17 +2,19 @@
  * The DOM adapter: reads Obsidian's rendered list into a tree, and draws the tree as a
  * paragraph whose sentences open in place. No Obsidian API here, so it runs under jsdom.
  */
-import { layout, toggle, type Node, type Open, type Segment } from './stretch'
+import { layout, parentKey, toggle, type Node, type Segment } from './stretch'
+import type { OpenState } from './state'
 
 export type Content = globalThis.Node[]
 
-/** Where the reader's open keys live between renders. */
-export interface OpenState {
-  get(): Open
-  set(open: Open): void
-}
-
+const OPEN_MARK = '»'
 const CLOSE_MARK = '«'
+const MARKS = '.stretch-open, .stretch-close'
+/** Longer sentences are cut here in a mark's accessible name. */
+const LABEL_LENGTH = 80
+
+/** How each mounted paragraph lets go of its state and its listeners, for `unmount`. */
+const mounted = new WeakMap<HTMLElement, () => void>()
 
 /** Reads a rendered list into a tree. Each item's content is its inline nodes, with the bullet,
  * fold indicator and sublists left out. A loose list wraps each item in a paragraph; its nodes
@@ -48,9 +50,10 @@ const isChrome = (el: HTMLElement) =>
  * left alone, and so are numbered lists, whose numbering a paragraph would lose. */
 export const lists = (el: HTMLElement): HTMLElement[] => [...el.querySelectorAll<HTMLElement>(':scope > ul')]
 
-/** Replaces the list with a stretchtext paragraph and returns it. Clicks redraw the paragraph.
- * Each sentence's rendered nodes are moved into one span, made once, so whatever other
- * post-processors add to them later is kept across redraws. */
+/** Replaces the list with a stretchtext paragraph and returns it. A click or a keypress changes
+ * the state; the paragraph redraws from the state through its subscription, as does every other
+ * view of the list. Each sentence's rendered nodes are moved into one span, made once, so whatever
+ * other post-processors add to them later is kept across redraws. */
 export function mount(list: HTMLElement, state: OpenState): HTMLElement {
   const tree = readList(list)
   const doc = list.ownerDocument
@@ -74,40 +77,119 @@ export function mount(list: HTMLElement, state: OpenState): HTMLElement {
     return node
   }
 
+  /** The » or « after a sentence that can open: a button the keyboard can reach, named after the
+   * sentence. Made once per key, like the sentence's span, so focus on it survives a redraw. */
+  const marks = new Map<string, HTMLElement>()
+  const markFor = (segment: Segment<Content>): HTMLElement => {
+    let mark = marks.get(segment.key)
+    if (mark === undefined) {
+      mark = doc.createElement('span')
+      mark.dataset['key'] = segment.key
+      mark.setAttribute('role', 'button')
+      mark.tabIndex = 0
+      marks.set(segment.key, mark)
+    }
+    mark.classList.toggle('stretch-open', !segment.open)
+    mark.classList.toggle('stretch-close', segment.open)
+    mark.textContent = segment.open ? CLOSE_MARK : OPEN_MARK
+    mark.setAttribute('aria-expanded', `${segment.open}`)
+    mark.setAttribute('aria-label', `${segment.open ? 'Close' : 'Open'}: ${excerpt(segment.content)}`)
+    return mark
+  }
+
+  /** Redraws from the state. Focus inside the paragraph is put back where it was; where that
+   * place has gone, it moves to the mark of the nearest sentence still shown. */
   const draw = () => {
+    const focused = focusedElement()
+    const focusedKey = focused === null ? undefined : ownKeyAround(focused)
     paragraph.replaceChildren()
     for (const segment of layout(tree, state.get())) {
       const node = spanFor(segment)
       node.classList.toggle('is-open', segment.open)
       paragraph.append(node)
-      if (segment.open) {
-        const close = doc.createElement('span')
-        close.classList.add('stretch-close')
-        close.dataset['key'] = segment.key
-        close.textContent = CLOSE_MARK
-        paragraph.append(' ', close)
-      }
+      if (segment.hasChildren) paragraph.append(' ', markFor(segment))
       paragraph.append(' ')
     }
+    if (focused === null) return
+    // Without scrolling: another view's click must not move this one.
+    if (paragraph.contains(focused)) focused.focus({ preventScroll: true })
+    else if (focusedKey !== undefined) nearestMark(focusedKey)?.focus({ preventScroll: true })
   }
 
-  paragraph.addEventListener('click', event => {
+  /** The key of this paragraph's own sentence or mark around an element; a nested stretch
+   * paragraph's keys are its own and are passed over. */
+  const ownKeyAround = (el: HTMLElement): string | undefined => {
+    for (let keyed = el.closest<HTMLElement>('[data-key]'); keyed !== null; keyed = keyed.parentElement?.closest<HTMLElement>('[data-key]') ?? null) {
+      if (keyed.parentElement === paragraph) return keyed.dataset['key']
+    }
+    return undefined
+  }
+
+  const focusedElement = (): HTMLElement | null => {
+    const active = doc.activeElement
+    return active !== null && paragraph.contains(active) ? (active as HTMLElement) : null
+  }
+
+  /** This paragraph's own mark for the key or, failing that, for the closest ancestor key. */
+  const nearestMark = (key: string): HTMLElement | null => {
+    for (let k: string | undefined = key; k !== undefined; k = parentKey(k)) {
+      const mark = marks.get(k)
+      if (mark?.parentElement === paragraph) return mark
+    }
+    return null
+  }
+
+  /** The control an event lands on, if it is one of this paragraph's own. */
+  const controlFor = (event: Event, selector: string): HTMLElement | null => {
     const target = asElement(event.target as globalThis.Node)
-    if (target === null) return
     // A link or a task checkbox keeps its own click.
-    if (target.closest('a, input')) return
-    const close = target.closest<HTMLElement>('.stretch-close')
-    const node = close ?? target.closest<HTMLElement>('.stretch-node.has-children')
-    const key = node?.dataset['key']
-    if (node === null || key === undefined) return
+    if (target === null || target.closest('a, input')) return null
     // A stretch paragraph nested in one of our sentences handles its own clicks.
-    if (node.closest('.stretch') !== paragraph) return
-    if (close === null && node.classList.contains('is-open')) return
+    if (target.closest('.stretch') !== paragraph) return null
+    return target.closest<HTMLElement>(selector)
+  }
+
+  const onClick = (event: MouseEvent) => {
+    const control = controlFor(event, `${MARKS}, .stretch-node.has-children`)
+    const key = control?.dataset['key']
+    if (control === null || key === undefined) return
+    // A click on an open sentence's text is reading, not closing; its « does that.
+    if (control.classList.contains('stretch-node') && state.get().has(key)) return
     event.preventDefault()
     state.set(toggle(state.get(), key))
-    draw()
-  })
+  }
 
+  const onKeydown = (event: KeyboardEvent) => {
+    if ((event.key !== 'Enter' && event.key !== ' ') || event.repeat) return
+    const key = controlFor(event, MARKS)?.dataset['key']
+    if (key === undefined) return
+    event.preventDefault()
+    state.set(toggle(state.get(), key))
+  }
+
+  paragraph.addEventListener('click', onClick)
+  paragraph.addEventListener('keydown', onKeydown)
+  const stop = state.subscribe(draw)
+  mounted.set(paragraph, () => {
+    stop()
+    paragraph.removeEventListener('click', onClick)
+    paragraph.removeEventListener('keydown', onKeydown)
+  })
   draw()
   return paragraph
+}
+
+/** Stops a mounted paragraph following its state and taking clicks. Called when Obsidian discards
+ * the rendering. */
+export function unmount(paragraph: HTMLElement): void {
+  mounted.get(paragraph)?.()
+  mounted.delete(paragraph)
+}
+
+/** The start of a sentence's own text, for a mark's accessible name. Read at each draw, so what
+ * an embed fills in later is included; what other post-processors append to the sentence's span
+ * is not part of it. Cut between characters, never inside one. */
+const excerpt = (content: Content): string => {
+  const chars = [...content.map(n => n.textContent ?? '').join('').replace(/\s+/g, ' ').trim()]
+  return chars.length > LABEL_LENGTH ? `${chars.slice(0, LABEL_LENGTH - 1).join('')}…` : chars.join('')
 }

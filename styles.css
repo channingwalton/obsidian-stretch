@@ -1,4 +1,5 @@
-/* Stretch: a sentence that can open is underlined in the accent colour; « closes it. */
+/* Stretch: a sentence that can open is underlined in the accent colour and followed by »; « closes it.
+   The marks are buttons, so the keyboard can reach them too. */
 .stretch .stretch-node.has-children:not(.is-open) {
   cursor: pointer;
   text-decoration: underline;
@@ -9,11 +10,19 @@
 .stretch .stretch-node.has-children:not(.is-open):hover {
   color: var(--text-accent);
 }
+.stretch .stretch-open,
 .stretch .stretch-close {
   cursor: pointer;
   color: var(--text-accent);
   user-select: none;
 }
+.stretch .stretch-open:hover,
 .stretch .stretch-close:hover {
   color: var(--text-accent-hover);
+}
+.stretch .stretch-open:focus-visible,
+.stretch .stretch-close:focus-visible {
+  outline: 2px solid var(--background-modifier-border-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
