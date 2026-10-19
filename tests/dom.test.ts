@@ -3,6 +3,24 @@ import { JSDOM } from 'jsdom'
 import { lists, mount, readList, unmount } from '../src/dom'
 import { openState } from '../src/state'
 
+/** The Obsidian DOM helpers this adapter uses, installed in each jsdom window. */
+const installDomHelpers = (doc: Document): void => {
+  const prototype = doc.defaultView!.Node.prototype
+  prototype.createEl = function (tag, options, callback) {
+    const el = (this.ownerDocument ?? doc).createElement(tag)
+    const cls = typeof options === 'string' ? options : options?.cls
+    if (cls !== undefined) el.className = Array.isArray(cls) ? cls.join(' ') : cls
+    callback?.(el)
+    this.appendChild(el)
+    return el
+  }
+  prototype.createSpan = function (options, callback) {
+    return this.createEl('span', options, callback)
+  }
+}
+
+installDomHelpers(document)
+
 /** Obsidian's reading-view markup for a nested list, as it renders it. */
 const LIST = `
 <ul class="has-list-bullet">
@@ -31,7 +49,7 @@ describe('readList', () => {
   it('turns the list into a tree, keeping inline markup and dropping bullets, indicators and sublists', () => {
     const tree = readList(obsidianList())
     expect(tree).toHaveLength(2)
-    const html = (nodes: globalThis.Node[]) =>
+    const html = (nodes: Node[]) =>
       nodes
         .map(n => (n instanceof Element ? n.outerHTML : n.textContent))
         .join('')
@@ -54,7 +72,7 @@ describe('readList', () => {
 </li>
 </ul>`
     const tree = readList(root.querySelector('ul') as HTMLElement)
-    const tags = (nodes: globalThis.Node[]) => nodes.filter((n): n is Element => n instanceof Element).map(n => n.tagName)
+    const tags = (nodes: Node[]) => nodes.filter((n): n is Element => n instanceof Element).map(n => n.tagName)
     expect(tags(tree[0]!.content)).toEqual(['EM'])
     expect(tags(tree[0]!.children[0]!.content)).toEqual([])
     expect(tree[0]!.content.map(n => n.textContent).join('').trim()).toBe('A loose item.')
@@ -354,6 +372,7 @@ describe('lists', () => {
 describe('in another window', () => {
   // Obsidian pop-out windows have their own HTMLElement class, so `instanceof` from this realm fails.
   const other = new JSDOM('<!doctype html><body></body>').window.document
+  installDomHelpers(other)
 
   it('reads the list the same way', () => {
     const tree = readList(obsidianList(other))

@@ -3,7 +3,7 @@
   "name": "Stretch",
   "version": "0.1.0",
   "minAppVersion": "1.14.4",
-  "description": "Stretchtext: a nested bullet list reads as a paragraph in reading view, each sentence opening one level in place when clicked.",
+  "description": "Render nested bullet lists as expandable paragraphs in reading view, revealing one level at a time.",
   "author": "Channing Walton",
   "isDesktopOnly": true
 }

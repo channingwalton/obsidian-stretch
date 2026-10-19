@@ -1,11 +1,11 @@
 /**
  * The DOM adapter: reads Obsidian's rendered list into a tree, and draws the tree as a
- * paragraph whose sentences open in place. No Obsidian API here, so it runs under jsdom.
+ * paragraph whose sentences open in place. Obsidian's DOM helpers are shimmed in jsdom tests.
  */
-import { layout, parentKey, toggle, type Node, type Segment } from './stretch'
+import { layout, parentKey, toggle, type Node as StretchNode, type Segment } from './stretch'
 import type { OpenState } from './state'
 
-export type Content = globalThis.Node[]
+export type Content = Node[]
 
 const OPEN_MARK = '»'
 const CLOSE_MARK = '«'
@@ -19,12 +19,12 @@ const mounted = new WeakMap<HTMLElement, () => void>()
 /** Reads a rendered list into a tree. Each item's content is its inline nodes, with the bullet,
  * fold indicator and sublists left out. A loose list wraps each item in a paragraph; its nodes
  * are taken out of it so the item stays inline. */
-export function readList(list: HTMLElement): Node<Content>[] {
+export function readList(list: HTMLElement): StretchNode<Content>[] {
   return [...list.children]
     .filter((child): child is HTMLElement => child.tagName === 'LI')
     .map(item => {
       const content: Content = []
-      const children: Node<Content>[] = []
+      const children: StretchNode<Content>[] = []
       for (const node of item.childNodes) {
         const el = asElement(node)
         if (el === null) content.push(node)
@@ -38,7 +38,7 @@ export function readList(list: HTMLElement): Node<Content>[] {
 }
 
 /** Elements from a pop-out window are not `instanceof` this window's classes, so test by node type. */
-const asElement = (node: globalThis.Node): HTMLElement | null =>
+const asElement = (node: Node): HTMLElement | null =>
   node.nodeType === 1 ? (node as HTMLElement) : null
 
 /** Only bullet sublists become levels; a numbered sublist stays part of its sentence. */
@@ -57,16 +57,15 @@ export const lists = (el: HTMLElement): HTMLElement[] => [...el.querySelectorAll
 export function mount(list: HTMLElement, state: OpenState): HTMLElement {
   const tree = readList(list)
   const doc = list.ownerDocument
-  const paragraph = doc.createElement('p')
-  paragraph.classList.add('stretch')
+  const paragraph = list.createEl('p', { cls: 'stretch' })
+  paragraph.remove()
   list.replaceWith(paragraph)
 
   const spans = new Map<string, HTMLElement>()
   const spanFor = (segment: Segment<Content>): HTMLElement => {
     const made = spans.get(segment.key)
     if (made !== undefined) return made
-    const node = doc.createElement('span')
-    node.classList.add('stretch-node')
+    const node = paragraph.createSpan({ cls: 'stretch-node' })
     node.classList.toggle('has-children', segment.hasChildren)
     node.dataset['key'] = segment.key
     node.dataset['depth'] = `${segment.depth}`
@@ -83,7 +82,7 @@ export function mount(list: HTMLElement, state: OpenState): HTMLElement {
   const markFor = (segment: Segment<Content>): HTMLElement => {
     let mark = marks.get(segment.key)
     if (mark === undefined) {
-      mark = doc.createElement('span')
+      mark = paragraph.createSpan()
       mark.dataset['key'] = segment.key
       mark.setAttribute('role', 'button')
       mark.tabIndex = 0
@@ -141,7 +140,7 @@ export function mount(list: HTMLElement, state: OpenState): HTMLElement {
 
   /** The control an event lands on, if it is one of this paragraph's own. */
   const controlFor = (event: Event, selector: string): HTMLElement | null => {
-    const target = asElement(event.target as globalThis.Node)
+    const target = asElement(event.target as Node)
     // A link or a task checkbox keeps its own click.
     if (target === null || target.closest('a, input')) return null
     // A stretch paragraph nested in one of our sentences handles its own clicks.
