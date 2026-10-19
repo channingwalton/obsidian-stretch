@@ -1,6 +1,6 @@
 {
   "name": "obsidian-stretch",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Stretchtext for Obsidian: a nested bullet list reads as a paragraph, each sentence opening one level in place",
   "private": true,
   "type": "module",
