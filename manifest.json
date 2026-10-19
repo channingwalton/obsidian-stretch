@@ -2,8 +2,8 @@
   "id": "stretch",
   "name": "Stretch",
   "version": "0.1.0",
-  "minAppVersion": "1.4.0",
+  "minAppVersion": "1.14.4",
   "description": "Stretchtext: a nested bullet list reads as a paragraph in reading view, each sentence opening one level in place when clicked.",
   "author": "Channing Walton",
-  "isDesktopOnly": false
+  "isDesktopOnly": true
 }
