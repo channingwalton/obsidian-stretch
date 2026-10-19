@@ -1,13 +1,13 @@
 # Stretch
 
-Stretchtext for Obsidian. A nested bullet list reads as a paragraph in reading view. Top-level
+[Stretchtext](https://en.wikipedia.org/wiki/Stretchtext) for Obsidian. A nested bullet list reads as a paragraph in reading view. Top-level
 bullets are what you see first. Click a sentence that can open, or the `»` after it, and its
 children appear after it, in place; click `«` to close them again. Each click opens one level.
 The marks are buttons, so Tab reaches them and Enter or Space works them.
 
 ![A note in reading view: clicking an underlined sentence opens its children after it, in place](docs/stretch.gif)
 
-The idea is Ted Nelson's (1967). The markup is just an outline, so a note stays an ordinary nested
+The markup is just an outline, so a note stays an ordinary nested
 list everywhere else, including Live Preview.
 
 ## Use
