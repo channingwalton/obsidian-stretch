@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Installs the tools pinned in mise.toml, so CI runs the same Node as local.
+      - uses: jdx/mise-action@v5
+      # npm ci fails if package-lock.json does not match package.json, and the tests check
+      # the plugin's version and the Obsidian API version against manifest.json.
+      - run: mise run commit-check

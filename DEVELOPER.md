@@ -5,7 +5,8 @@ see the [README](README.md).
 
 ## Prerequisites
 
-- Node and npm. Dependencies are pinned in `package-lock.json`.
+- Node and npm. `mise install` installs the Node version pinned in `mise.toml`, and dependencies
+  are pinned in `package-lock.json`.
 - [mise](https://mise.jdx.dev) for the tasks below. Run `mise trust` once after cloning.
 - [gh](https://cli.github.com), logged in, and `jq`, both used by the release tasks.
 - Obsidian 1.14.4 or later on desktop, the `minAppVersion` in `manifest.json`.
@@ -54,6 +55,18 @@ npm run install:vault   # copy the plugin into a vault
 
 `npm run dev` writes a development `main.js` with a source map. The release task rebuilds a
 production one first, so a development build is never released.
+
+## Continuous integration
+
+GitHub Actions runs `mise run commit-check` on every push to `main` and every pull request, with
+the Node version from `mise.toml`. Besides the build and the tests, it catches versions that
+disagree:
+
+- `npm ci` fails if `package-lock.json` does not match the dependencies in `package.json`.
+- `tests/versions.test.ts` fails if `package.json`, `package-lock.json` and `manifest.json` carry
+  different plugin versions.
+- The same test fails if the `obsidian` API package is newer than the manifest's
+  `minAppVersion`, since the plugin could then use API that the oldest supported Obsidian lacks.
 
 ## Trying it in Obsidian
 
