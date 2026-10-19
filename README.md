@@ -55,6 +55,7 @@ list's position in the note, so editing the list while reading it may move or dr
 ```
 npm test             # vitest: the core and the DOM adapter, under jsdom
 npm run typecheck
+npm run lint         # Obsidian's review rules over src
 npm run build        # main.js
 npm run install:vault   # copy into ~/Documents/Notes/.obsidian/plugins/stretch (or $VAULT)
 ```

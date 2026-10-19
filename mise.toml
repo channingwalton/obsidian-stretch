@@ -12,11 +12,12 @@ run = "rm -f main.js"
 
 [tasks.commit-check]
 alias = "cc"
-description = "Clean, install dependencies, typecheck, test and build"
+description = "Clean, install dependencies, typecheck, lint, test and build"
 depends = ["clean"]
 run = [
     "npm ci",
     "npm run typecheck",
+    "npm run lint",
     "npm test",
     "npm run build",
 ]
