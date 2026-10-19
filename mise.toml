@@ -1,0 +1,60 @@
+[tasks.default]
+description = "List available tasks"
+run = "mise tasks ls --local --extended"
+
+[tasks.clean]
+description = "Remove the built plugin"
+run = "rm -f main.js"
+
+[tasks.commit-check]
+alias = "cc"
+description = "Clean, install dependencies, typecheck, test and build"
+depends = ["clean"]
+run = [
+    "npm ci",
+    "npm run typecheck",
+    "npm test",
+    "npm run build",
+]
+
+[tasks.release]
+description = "Check, tag the manifest version and publish it as a GitHub release"
+usage = 'flag "--notes <file>" help="Release notes file; GitHub generates them when omitted"'
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+version=$(jq -r .version manifest.json)
+# Obsidian finds a release by the manifest version as the tag, with no v prefix.
+if git rev-parse -q --verify "refs/tags/$version" >/dev/null \
+    || [ -n "$(git ls-remote --tags origin "refs/tags/$version")" ]; then
+    echo "error: tag $version already exists; bump the version in manifest.json first" >&2
+    exit 1
+fi
+if [ "$(jq -r .version package.json)" != "$version" ]; then
+    echo "error: package.json and manifest.json disagree on the version" >&2
+    exit 1
+fi
+if [ "$(git branch --show-current)" != main ]; then
+    echo "error: release from main" >&2
+    exit 1
+fi
+# The tag must point at a commit holding exactly what is released.
+if [ -n "$(git status --porcelain)" ]; then
+    echo "error: the working tree has uncommitted changes" >&2
+    exit 1
+fi
+mise run commit-check
+git tag "$version"
+git push origin main "$version"
+if [ -n "${usage_notes:-}" ]; then
+    notes=(--notes-file "$usage_notes")
+else
+    notes=(--generate-notes)
+fi
+# --verify-tag: without it gh would make a missing tag from the remote default branch.
+gh release create "$version" main.js manifest.json styles.css \
+    --verify-tag \
+    --title "Stretch $version" \
+    "${notes[@]}"
+echo "==> $version released"
+'''

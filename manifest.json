@@ -1,7 +1,7 @@
 {
   "id": "stretch",
   "name": "Stretch",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minAppVersion": "1.14.4",
   "description": "Render nested bullet lists as expandable paragraphs in reading view, revealing one level at a time.",
   "author": "Channing Walton",
