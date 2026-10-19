@@ -1,5 +1,7 @@
 # Stretch
 
+[![CI](https://github.com/channingwalton/obsidian-stretch/actions/workflows/ci.yml/badge.svg)](https://github.com/channingwalton/obsidian-stretch/actions/workflows/ci.yml)
+
 [Stretchtext](https://en.wikipedia.org/wiki/Stretchtext) for Obsidian. A nested bullet list reads as a paragraph in reading view. Top-level
 bullets are what you see first. Click a sentence that can open, or the `»` after it, and its
 children appear after it, in place; click `«` to close them again. Each click opens one level.
