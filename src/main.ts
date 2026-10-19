@@ -46,7 +46,7 @@ export default class StretchPlugin extends Plugin {
     this.optingIn.add(file)
     let changed = false
     try {
-      await this.app.fileManager.processFrontMatter(file, frontmatter => {
+      await this.app.fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
         changed = optIn(frontmatter)
       })
     } catch (error) {

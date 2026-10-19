@@ -40,7 +40,7 @@ Each module has a test file of the same name under `tests/`.
 
 ```
 mise run              # list the tasks
-mise run cc           # commit check: clean, npm ci, typecheck, test, build
+mise run cc           # commit check: clean, npm ci, typecheck, lint, test, build
 mise run clean        # remove the built main.js
 mise run bump patch   # bump the version: major, minor or patch
 mise run release      # tag and push the version; GitHub Actions publishes the release
@@ -51,10 +51,16 @@ Run `mise run cc` before committing. The npm scripts underneath also work on the
 ```
 npm test                # vitest under jsdom
 npm run typecheck
+npm run lint            # Obsidian's review rules over src
 npm run build           # production main.js
 npm run dev             # rebuild main.js on change, with an inline source map
 npm run install:vault   # copy the plugin into a vault
 ```
+
+The lint runs `eslint-plugin-obsidianmd`'s recommended rules, the ones Obsidian's plugin review
+runs, and fails on warnings too, so a finding there shows up before submission. Its type-checked
+rules need typescript-eslint, which supports TypeScript up to 6.0, so the project stays on
+TypeScript 6.0 until it supports 7.
 
 `npm run dev` writes a development `main.js` with a source map. Releases are built by GitHub
 Actions from the tagged commit, so a local build is never released.
