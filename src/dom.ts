@@ -46,9 +46,11 @@ const isList = (el: HTMLElement) => el.tagName === 'UL'
 const isChrome = (el: HTMLElement) =>
   el.classList.contains('list-bullet') || el.classList.contains('list-collapse-indicator')
 
-/** The top-level bullet lists of a rendered element, in order. Lists inside quotes or callouts are
- * left alone, and so are numbered lists, whose numbering a paragraph would lose. */
-export const lists = (el: HTMLElement): HTMLElement[] => [...el.querySelectorAll<HTMLElement>(':scope > ul')]
+/** The bullet lists of a rendered section's stretch callout, `> [!stretch]`, in order. Lists
+ * elsewhere are left alone, and so are numbered lists, whose numbering a paragraph would lose. A
+ * whole note, as Export to PDF hands over, holds its callouts a level down and gives none. */
+export const lists = (el: HTMLElement): HTMLElement[] =>
+  [...el.querySelectorAll<HTMLElement>(':scope > .callout[data-callout="stretch"] > .callout-content > ul')]
 
 /** Replaces the list with a stretchtext paragraph and returns it. A click or a keypress changes
  * the state; the paragraph redraws from the state through its subscription, as does every other

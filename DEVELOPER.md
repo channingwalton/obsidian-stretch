@@ -19,7 +19,7 @@ The logic lives in a pure, tested core. The DOM and Obsidian are thin adapters a
 ```mermaid
 flowchart LR
   main["src/main.ts<br/>Obsidian plugin"] --> dom["src/dom.ts<br/>DOM adapter"]
-  main --> note["src/note.ts<br/>which notes opt in"]
+  main --> note["src/note.ts<br/>tells lists apart"]
   main --> state["src/state.ts<br/>open state per list"]
   dom --> stretch["src/stretch.ts<br/>core: what shows, given what is open"]
   dom --> state
@@ -27,12 +27,10 @@ flowchart LR
 
 - `src/stretch.ts` decides which nodes show, in what order, given what the reader has opened.
 - `src/state.ts` keeps what is open for one list, shared by every view of it.
-- `src/note.ts` decides whether a note opts in through its `cssclasses`, opts one in, and tells
-  lists apart.
+- `src/note.ts` tells lists apart, so each keeps its own open state.
 - `src/dom.ts` reads Obsidian's rendered list into a tree and draws it as a paragraph. It uses
   Obsidian's DOM helpers, `createEl` and `createSpan`, which the tests install in jsdom.
-- `src/main.ts` registers the Markdown post-processor and the file menu's **Make stretchable**,
-  and wires the rest together.
+- `src/main.ts` registers the Markdown post-processor and wires the rest together.
 
 Each module has a test file of the same name under `tests/`.
 
@@ -91,7 +89,7 @@ This copies `main.js`, `manifest.json` and `styles.css` into `.obsidian/plugins/
 Settings, Community plugins. After that, reload Obsidian or toggle the plugin off and on to pick
 up a new build.
 
-Then open a note with `stretch` in its `cssclasses` in reading view.
+Then open a note with a `> [!stretch]` callout in reading view.
 
 ### In an isolated Obsidian
 

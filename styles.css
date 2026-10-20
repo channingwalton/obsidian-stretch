@@ -27,21 +27,46 @@
   border-radius: 2px;
 }
 
+/* A stretch callout whose lists the plugin has drawn reads as prose: the callout's box goes, leaving
+   its content in the note's flow, and its title is hidden. One with nothing drawn keeps both. A
+   folded callout, `> [!stretch]-`, shows its content all the same: Obsidian hides it with an inline
+   style, and the hidden title could not unfold it. */
+.callout[data-callout="stretch"]:has(> .callout-content > .stretch) {
+  display: contents;
+}
+.callout[data-callout="stretch"]:has(> .callout-content > .stretch) > .callout-content {
+  display: contents !important;
+}
+.callout[data-callout="stretch"]:has(> .callout-content > .stretch) > .callout-title {
+  display: none;
+}
+
 /* Print: Export to PDF hands the post-processor the whole note at once, where it finds no section's
-   list to draw, so a stretch note's lists are flattened here instead, every level open. These are
-   the lists reading view draws: a section's top-level bullet list (`.stretch > div > ul` in the
-   export) and the items reached from it through bullet lists alone, not through a quote, callout,
-   numbered list or any other block. Each top-level list stays a block and prints as one paragraph. */
+   callout to draw, so the lists of a stretch callout are flattened here instead, every level open.
+   These are the lists reading view draws: those of a stretch callout at the top of the note
+   (`.markdown-preview-view > div > .callout` in the export), and the items reached from them through
+   bullet lists alone, not through a quote, callout, numbered list or any other block. Each list
+   stays a block and prints as one paragraph. */
 @media print {
-  .stretch > div > ul li:not(li :not(ul, li) li),
-  .stretch > div > ul li:not(li :not(ul, li) li) > :is(ul, p) {
+  /* The callouts reading view draws, those holding a bullet list, read as prose as they do there. */
+  .markdown-preview-view > div > .callout[data-callout="stretch"]:has(> .callout-content > ul) {
+    display: contents;
+  }
+  .markdown-preview-view > div > .callout[data-callout="stretch"]:has(> .callout-content > ul) > .callout-content {
+    display: contents !important;
+  }
+  .markdown-preview-view > div > .callout[data-callout="stretch"]:has(> .callout-content > ul) > .callout-title {
+    display: none;
+  }
+  .markdown-preview-view > div > .callout[data-callout="stretch"] > .callout-content > ul li:not(li :not(ul, li) li),
+  .markdown-preview-view > div > .callout[data-callout="stretch"] > .callout-content > ul li:not(li :not(ul, li) li) > :is(ul, p) {
     display: inline;
     margin: 0;
     padding: 0;
   }
   /* Obsidian hangs a task's checkbox in the item's indent, which the line no longer has. */
-  .stretch > div > ul li:not(li :not(ul, li) li) > .task-list-item-checkbox,
-  .stretch > div > ul li:not(li :not(ul, li) li) > p > .task-list-item-checkbox {
+  .markdown-preview-view > div > .callout[data-callout="stretch"] > .callout-content > ul li:not(li :not(ul, li) li) > .task-list-item-checkbox,
+  .markdown-preview-view > div > .callout[data-callout="stretch"] > .callout-content > ul li:not(li :not(ul, li) li) > p > .task-list-item-checkbox {
     margin-inline-start: 0;
   }
 }

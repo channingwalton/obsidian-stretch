@@ -2,51 +2,49 @@
 
 [![CI](https://github.com/channingwalton/obsidian-stretch/actions/workflows/ci.yml/badge.svg)](https://github.com/channingwalton/obsidian-stretch/actions/workflows/ci.yml)
 
-[Stretchtext](https://en.wikipedia.org/wiki/Stretchtext) for Obsidian. A nested bullet list reads as a paragraph in reading view. Top-level
-bullets are what you see first. Click a sentence that can open, or the `»` after it, and its
+[Stretchtext](https://en.wikipedia.org/wiki/Stretchtext) for Obsidian. A nested bullet list in a stretch callout reads as a paragraph.
+Top-level bullets are what you see first. Click a sentence that can open, or the `»` after it, and its
 children appear after it, in place; click `«` to close them again. Each click opens one level.
 The marks are buttons, so Tab reaches them and Enter or Space works them.
 
 ![A note in reading view: clicking an underlined sentence opens its children after it, in place](docs/stretch.gif)
 
-The markup is just an outline, so a note stays an ordinary nested
-list everywhere else, including Live Preview.
+The markup is just an outline in a callout, so lists outside the callout stay ordinary lists, and
+elsewhere, such as GitHub, the note shows a quote that starts `[!stretch]` and holds a nested list.
 
 ## Use
 
-Add the class to a note's frontmatter:
-
-```yaml
----
-cssclasses:
-  - stretch
----
-```
-
-Or right-click the note's tab, or the note in the file explorer, and choose **Make stretchable**.
-It adds the class and keeps any the note already has.
-
-Then write nested bullets where every bullet is a sentence that stands on its own:
+Write nested bullets where every bullet is a sentence that stands on its own, inside a `stretch`
+callout:
 
 ```markdown
-- The build fails on a stale cache.
-	- The CI cache is keyed only by `package.json`, so a lockfile change leaves it stale.
-		- About one run in five hits it.
-- The fix is to key the cache on the lockfile.
+> [!stretch]
+> - The build fails on a stale cache.
+> 	- The CI cache is keyed only by `package.json`, so a lockfile change leaves it stale.
+> 		- About one run in five hits it.
+> - The fix is to key the cache on the lockfile.
 ```
 
-In reading view that renders as "The build fails on a stale cache. The fix is to key the cache on
-the lockfile." with the first sentence underlined. Click it and the second level opens after it.
+That renders as "The build fails on a stale cache. The fix is to key the cache on the lockfile."
+with the first sentence underlined. Click it and the second level opens after it. The callout's
+box and title are hidden, so it reads as a paragraph of the note. Each bullet list in the callout
+becomes a paragraph of its own; anything else in it, such as a line of text, stays as it is.
+
+In Live Preview the paragraph works the same way until you edit it: put the cursor in the callout,
+or use the `</>` button that appears on hover, to see the outline.
 
 What the reader has opened is remembered for the session, per note, not saved. It is kept by the
 list's position in the note, so editing the list while reading it may move or drop what was open.
+Reading view and Live Preview each keep their own.
 
 ## Limits
 
-- Reading view only. Live Preview shows the outline as usual.
-- Paper cannot be clicked, so Export to PDF prints the note's own lists as paragraphs with every
-  level open. A stretch note embedded in it prints only its top level.
-- Only top-level lists of a note are drawn as stretchtext. Lists inside callouts and quotes are left alone.
+- Paper cannot be clicked, so Export to PDF prints the note's own stretch callouts as paragraphs
+  with every level open. A stretch callout in a note embedded in it prints only its top level.
+- Only a stretch callout at the top level of a note is drawn as stretchtext. One inside a quote,
+  another callout or a list is left as it is.
+- The callout's title is hidden, a custom one too, and a folded callout, `> [!stretch]-`, shows
+  its paragraph all the same.
 - A task checkbox in a stretch list shows its state but cannot be ticked there; Obsidian's handler
   needs the list item the plugin replaced.
 - Bullets are meant to hold sentences. A numbered sublist stays inside its sentence, unopened. A
