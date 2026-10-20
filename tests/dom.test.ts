@@ -362,10 +362,37 @@ describe('mount', () => {
 })
 
 describe('lists', () => {
-  it('finds every top-level bullet list, not nested ones and not numbered ones, whose order would be lost', () => {
+  /** A section holding a callout, as Obsidian renders `> [!type]`, which it lowercases. */
+  const section = (type: string, content: string): HTMLElement => {
     const el = document.createElement('div')
-    el.innerHTML = '<ul><li>a<ul><li>b</li></ul></li></ul><p>x</p><ol><li>c</li></ol><blockquote><ul><li>d</li></ul></blockquote>'
-    expect(lists(el).map(l => l.tagName)).toEqual(['UL'])
+    el.innerHTML = `<div data-callout="${type}" class="callout"><div class="callout-title"><div class="callout-title-inner">Title</div></div><div class="callout-content">${content}</div></div>`
+    return el
+  }
+
+  it('finds every bullet list of a stretch callout, not nested ones and not numbered ones, whose order would be lost', () => {
+    const el = section('stretch', '<ul id="a"><li>a<ul><li>b</li></ul></li></ul><p>x</p><ol><li>c</li></ol><blockquote><ul><li>d</li></ul></blockquote><ul id="e"><li>e</li></ul>')
+    expect(lists(el).map(l => l.id)).toEqual(['a', 'e'])
+  })
+
+  it('leaves a list outside a stretch callout as a list', () => {
+    const el = document.createElement('div')
+    el.innerHTML = '<ul><li>a<ul><li>b</li></ul></li></ul>'
+    expect(lists(el)).toEqual([])
+  })
+
+  it('leaves the lists of other callouts alone', () => {
+    expect(lists(section('note', '<ul><li>a</li></ul>'))).toEqual([])
+  })
+
+  it('leaves a stretch callout nested in another block alone', () => {
+    const nested = section('note', section('stretch', '<ul><li>a</li></ul>').innerHTML)
+    expect(lists(nested)).toEqual([])
+  })
+
+  it('finds nothing when handed a whole note rather than a section, as Export to PDF does', () => {
+    const note = document.createElement('div')
+    note.append(section('stretch', '<ul><li>a</li></ul>'))
+    expect(lists(note)).toEqual([])
   })
 })
 
