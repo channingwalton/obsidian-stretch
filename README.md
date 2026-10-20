@@ -7,7 +7,7 @@ Top-level bullets are what you see first. Click a sentence that can open, or the
 children appear after it, in place; click `«` to close them again. Each click opens one level.
 The marks are buttons, so Tab reaches them and Enter or Space works them.
 
-![A note in reading view: clicking an underlined sentence opens its children after it, in place](docs/stretch.gif)
+![A recipe in a stretch callout. In reading view, clicking an underlined sentence opens its details after it, in place, and « closes them. Live Preview reads the same way, and moving the cursor into the callout shows the nested list it is written as](docs/stretch.gif)
 
 The markup is just an outline in a callout, so lists outside the callout stay ordinary lists, and
 elsewhere, such as GitHub, the note shows a quote that starts `[!stretch]` and holds a nested list.
