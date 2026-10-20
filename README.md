@@ -44,6 +44,8 @@ list's position in the note, so editing the list while reading it may move or dr
 ## Limits
 
 - Reading view only. Live Preview shows the outline as usual.
+- Paper cannot be clicked, so Export to PDF prints the note's own lists as paragraphs with every
+  level open. A stretch note embedded in it prints only its top level.
 - Only top-level lists of a note are drawn as stretchtext. Lists inside callouts and quotes are left alone.
 - A task checkbox in a stretch list shows its state but cannot be ticked there; Obsidian's handler
   needs the list item the plugin replaced.
@@ -53,7 +55,7 @@ list's position in the note, so editing the list while reading it may move or dr
 ## Develop
 
 ```
-npm test             # vitest: the core and the DOM adapter, under jsdom
+npm test             # vitest: the core, the DOM adapter and the print styles, under jsdom
 npm run typecheck
 npm run lint         # Obsidian's review rules over src
 npm run build        # main.js
