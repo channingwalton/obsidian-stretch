@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { JSDOM } from 'jsdom'
-import { lists, mount, readList, unmount } from '../src/dom'
+import { asProse, lists, mount, readList, unmount } from '../src/dom'
 import { openState } from '../src/state'
 
 /** The Obsidian DOM helpers this adapter uses, installed in each jsdom window. */
@@ -361,14 +361,33 @@ describe('mount', () => {
   })
 })
 
-describe('lists', () => {
-  /** A section holding a callout, as Obsidian renders `> [!type]`, which it lowercases. */
-  const section = (type: string, content: string): HTMLElement => {
-    const el = document.createElement('div')
-    el.innerHTML = `<div data-callout="${type}" class="callout"><div class="callout-title"><div class="callout-title-inner">Title</div></div><div class="callout-content">${content}</div></div>`
-    return el
-  }
+/** A section holding a callout, as Obsidian renders `> [!type]`, which it lowercases. */
+const section = (type: string, content: string): HTMLElement => {
+  const el = document.createElement('div')
+  el.innerHTML = `<div data-callout="${type}" class="callout"><div class="callout-title"><div class="callout-title-inner">Title</div></div><div class="callout-content">${content}</div></div>`
+  return el
+}
 
+/** A whole note holding these sections, as Export to PDF renders it: each block in its own div. */
+const wholeNote = (...sections: HTMLElement[]): HTMLElement => {
+  const el = document.createElement('div')
+  el.className = 'markdown-preview-view markdown-rendered'
+  el.append(...sections)
+  return el
+}
+
+/** Folds a section's callout as Obsidian does for `> [!type]-`: a class, and an inline style on the content. */
+const folded = (el: HTMLElement): HTMLElement => {
+  const callout = el.querySelector<HTMLElement>('.callout')!
+  callout.classList.add('is-collapsible', 'is-collapsed')
+  callout.querySelector<HTMLElement>(':scope > .callout-content')!.style.display = 'none'
+  return el
+}
+
+const prose = (el: HTMLElement): boolean[] =>
+  [...el.querySelectorAll('.callout')].map(callout => callout.classList.contains('stretch-prose'))
+
+describe('lists', () => {
   it('finds every bullet list of a stretch callout, not nested ones and not numbered ones, whose order would be lost', () => {
     const el = section('stretch', '<ul id="a"><li>a<ul><li>b</li></ul></li></ul><p>x</p><ol><li>c</li></ol><blockquote><ul><li>d</li></ul></blockquote><ul id="e"><li>e</li></ul>')
     expect(lists(el).map(l => l.id)).toEqual(['a', 'e'])
@@ -390,9 +409,49 @@ describe('lists', () => {
   })
 
   it('finds nothing when handed a whole note rather than a section, as Export to PDF does', () => {
-    const note = document.createElement('div')
-    note.append(section('stretch', '<ul><li>a</li></ul>'))
-    expect(lists(note)).toEqual([])
+    expect(lists(wholeNote(section('stretch', '<ul><li>a</li></ul>')))).toEqual([])
+  })
+})
+
+describe('asProse', () => {
+  it('sets a stretch callout at the top of a section to read as prose when it holds a bullet list, which the plugin draws', () => {
+    const el = section('stretch', '<p>x</p><ul><li>a</li></ul>')
+    asProse(el)
+    expect(prose(el)).toEqual([true])
+  })
+
+  it('sets the stretch callouts at the top of a whole note to read as prose, whose lists Export to PDF prints flat', () => {
+    const note = wholeNote(section('stretch', '<ul><li>a</li></ul>'), section('stretch', '<ul><li>b</li></ul>'))
+    asProse(note)
+    expect(prose(note)).toEqual([true, true])
+  })
+
+  it('leaves the box of a stretch callout with no bullet list, of other callouts and of a stretch callout nested in one', () => {
+    const els = [
+      section('stretch', '<p>x</p><ol><li>a</li></ol><blockquote><ul><li>b</li></ul></blockquote><div class="html-block"><ul><li>c</li></ul></div>'),
+      section('note', '<ul><li>a</li></ul>'),
+      section('note', section('stretch', '<ul><li>a</li></ul>').innerHTML),
+      wholeNote(section('note', section('stretch', '<ul><li>a</li></ul>').innerHTML)),
+    ]
+    for (const el of els) asProse(el)
+    expect(els.flatMap(prose)).toEqual([false, false, false, false, false, false])
+  })
+
+  it('unfolds a folded stretch callout, whose hidden title could not unfold it', () => {
+    const els = [folded(section('stretch', '<ul><li>a</li></ul>')), wholeNote(folded(section('stretch', '<ul><li>a</li></ul>')))]
+    for (const el of els) {
+      asProse(el)
+      const callout = el.querySelector<HTMLElement>('.callout')!
+      expect(callout.classList.contains('is-collapsed')).toBe(false)
+      expect(callout.querySelector<HTMLElement>('.callout-content')!.style.display).toBe('')
+    }
+  })
+
+  it('leaves other folded callouts folded', () => {
+    const el = folded(section('note', '<ul><li>a</li></ul>'))
+    asProse(el)
+    expect(el.querySelector('.callout')!.classList.contains('is-collapsed')).toBe(true)
+    expect(el.querySelector<HTMLElement>('.callout-content')!.style.display).toBe('none')
   })
 })
 

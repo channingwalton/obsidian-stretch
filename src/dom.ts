@@ -10,6 +10,7 @@ export type Content = Node[]
 const OPEN_MARK = '»'
 const CLOSE_MARK = '«'
 const MARKS = '.stretch-open, .stretch-close'
+const PROSE = 'stretch-prose'
 /** Longer sentences are cut here in a mark's accessible name. */
 const LABEL_LENGTH = 80
 
@@ -51,6 +52,23 @@ const isChrome = (el: HTMLElement) =>
  * whole note, as Export to PDF hands over, holds its callouts a level down and gives none. */
 export const lists = (el: HTMLElement): HTMLElement[] =>
   [...el.querySelectorAll<HTMLElement>(':scope > .callout[data-callout="stretch"] > .callout-content > ul')]
+
+/** Sets each stretch callout holding a bullet list to read as prose: the stylesheet takes away the
+ * box and title of a callout with this class. These are the callouts at the top of a section, whose
+ * lists `lists` finds to draw, and those at the top of a whole note, as Export to PDF hands over,
+ * whose lists print flat. A folded one, `> [!stretch]-`, is unfolded, as its hidden title could
+ * not be clicked. */
+export function asProse(el: HTMLElement): void {
+  const contents = el.querySelectorAll<HTMLElement>(
+    ':scope > .callout[data-callout="stretch"] > .callout-content, :scope > div > .callout[data-callout="stretch"] > .callout-content')
+  for (const content of contents) {
+    if (content.querySelector(':scope > ul') === null) continue
+    const callout = content.parentElement!
+    callout.classList.add(PROSE)
+    callout.classList.remove('is-collapsed')
+    content.style.removeProperty('display')
+  }
+}
 
 /** Replaces the list with a stretchtext paragraph and returns it. A click or a keypress changes
  * the state; the paragraph redraws from the state through its subscription, as does every other
